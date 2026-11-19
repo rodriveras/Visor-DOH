@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css?v=20261119e">
+    <link rel="stylesheet" href="css/styles.css?v=20261119h">
 </head>
 <body>
     <!-- MAPA FULLSCREEN -->
@@ -161,23 +161,35 @@
             <div id="ssr-list-container" class="ssr-list-container"></div>
         </div>
 
-        <!-- VISTA 2: COPILOTO ESTRATÉGICO INTEGRADO -->
+        <!-- VISTA 2: COPILOTO ESTRATÉGICO INTEGRADO (GEMINI AI) -->
         <div id="panel-view-copilot" class="panel-tab-view" style="display:none;">
+            <div class="gemini-status-row">
+                <button id="btn-gemini-config" class="btn-gemini-status" onclick="toggleGeminiKeyBox()">
+                    <span id="gemini-dot" class="gem-dot"></span>
+                    <span id="gemini-status-txt">Configurar Gemini API Key</span>
+                </button>
+            </div>
+
+            <div id="gemini-key-box" class="gemini-key-box" style="display:none;">
+                <input type="password" id="gemini-api-key-input" placeholder="Pega tu Gemini API Key (AIza...)" autocomplete="off">
+                <button class="btn-gem-save" onclick="saveGeminiApiKey()">Guardar</button>
+            </div>
+
             <div class="copilot-chips">
-                <button class="cp-chip" onclick="askCopilot('Top 5 críticos')">Top 5 Críticos</button>
-                <button class="cp-chip" onclick="askCopilot('Redes extensas >= 15 km')">Redes ≥15 km</button>
-                <button class="cp-chip" onclick="askCopilot('Briefing Ñuble')">Briefing Ñuble</button>
+                <button class="cp-chip" onclick="askCopilot('Top 5 críticos por inversión y población')">Top 5 Críticos</button>
+                <button class="cp-chip" onclick="askCopilot('Analiza el riesgo de sequía y aljibes en Itata vs Punilla')">Sequía Itata/Punilla</button>
+                <button class="cp-chip" onclick="askCopilot('Prepara una minuta ejecutiva de la Región de Ñuble')">Minuta Ñuble</button>
             </div>
 
             <div id="copilot-messages" class="copilot-messages">
                 <div class="cp-msg cp-msg-ai">
-                    <strong>Consultas Disponibles</strong>
-                    <p>Escribe una <b>comuna</b> (ej. <i>Coihueco</i>), una <b>provincia</b> (<i>Itata, Punilla, Diguillín</i>) o el nombre de un <b>SSR</b> para obtener cifras reales y enfocar el mapa.</p>
+                    <strong>Copiloto IA · DOH Ñuble</strong>
+                    <p>Conecta tu <b>Gemini API Key</b> para hacer cualquier consulta libre sobre los <b>120 SSRs</b>, redactar minutas para alcaldes o analizar prioridades de inversión.</p>
                 </div>
             </div>
 
             <form class="copilot-input-row" onsubmit="event.preventDefault(); submitCopilotInput();">
-                <input type="text" id="copilot-input" placeholder="Comuna, provincia o SSR..." autocomplete="off">
+                <input type="text" id="copilot-input" placeholder="Pregunta libre a Gemini sobre Ñuble..." autocomplete="off">
                 <button type="submit" class="btn-cp-send" title="Consultar">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -388,6 +400,6 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="data/ssr_nuble.js"></script>
-    <script src="js/app.js?v=20261119f"></script>
+    <script src="js/app.js?v=20261119h"></script>
 </body>
 </html>

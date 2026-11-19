@@ -808,7 +808,7 @@ html, body {
 
 .leaflet-popup-content-wrapper { border-radius: 16px; background: rgba(255, 255, 255, 0.96); box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18); }
 
-/* MOBILE-FIRST BOTTOM SHEET RESPONSIVE */
+/* MOBILE-FIRST LEFT SIDEBAR DRAWER RESPONSIVE */
 @media (max-width: 768px) {
     .hide-sm { display: none; }
     .brand-titles { display: none; }
@@ -820,33 +820,36 @@ html, body {
     .btn-director-pill { padding: 8px; border-radius: 50%; }
 
     .executive-panel {
-        top: auto;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        width: 100%;
-        border-radius: 22px 22px 0 0;
-        padding: 6px 14px calc(12px + env(safe-area-inset-bottom));
+        top: 68px;
+        bottom: 12px;
+        left: 10px;
+        width: min(85vw, 305px);
+        border-radius: 20px;
+        padding: 12px;
+        z-index: 960;
     }
-    .executive-panel.sheet-peek { height: 118px; }
-    .executive-panel.sheet-peek .panel-tab-view { display: none !important; }
-    .executive-panel.sheet-expanded { height: 72vh; }
-    .sheet-handle-area { display: flex; }
+    .executive-panel.collapsed {
+        transform: translateX(-115%);
+        opacity: 0;
+        pointer-events: none;
+    }
+    .btn-reopen-panel { top: 68px; left: 10px; z-index: 920; }
+    .sheet-handle-area { display: none; }
 
     .ssr-detail-card {
         top: auto;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        width: 100%;
-        max-height: 75vh;
-        border-radius: 24px 24px 0 0;
-        padding: 10px 16px calc(18px + env(safe-area-inset-bottom));
-        z-index: 985;
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        width: auto;
+        max-height: 55vh;
+        border-radius: 22px;
+        padding: 12px 14px;
+        z-index: 950;
     }
     .detail-drag-handle { display: block; }
 
-    .map-floating-controls { bottom: 132px; right: 12px; }
+    .map-floating-controls { bottom: 20px; right: 12px; }
     .inspection-pill-bar { display: none !important; }
     .dm-summary-strip { grid-template-columns: repeat(2, 1fr); }
     .dm-pillars-grid { grid-template-columns: 1fr; }
@@ -875,6 +878,71 @@ html, body {
     padding-bottom: 8px;
     border-bottom: 1px solid #e2e8f0;
     flex-shrink: 0;
+}
+
+.gemini-status-row {
+    margin-bottom: 7px;
+    flex-shrink: 0;
+}
+
+.btn-gemini-status {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    border-radius: 9px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-gemini-status:hover { background: #eff6ff; color: var(--accent-blue); border-color: #bfdbfe; }
+
+.gem-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #f59e0b;
+    flex-shrink: 0;
+}
+
+.gem-dot.connected {
+    background: #10b981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.gemini-key-box {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+
+#gemini-api-key-input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 9px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    font-size: 11.5px;
+    font-family: inherit;
+    outline: none;
+}
+
+.btn-gem-save {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent-blue);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
 }
 
 .cp-chip {
@@ -981,10 +1049,6 @@ html, body {
     flex-shrink: 0;
 }
 .btn-cp-send:hover { background: #1d4ed8; }
-
-@media (max-width: 768px) {
-    .btn-collapse-desktop { display: none; }
-}
 
 /* ==========================================================================
    TEMA OSCURO VOLUNTARIO (APPLE MAPS NIGHT / LIFE360 DARK)
@@ -1115,4 +1179,11 @@ body.theme-dark .leaflet-popup-content-wrapper,
 body.theme-dark .leaflet-popup-tip {
     background: rgba(15, 23, 42, 0.95);
     color: #f8fafc;
+}
+
+body.theme-dark .btn-gemini-status,
+body.theme-dark #gemini-api-key-input {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #e2e8f0;
 }

@@ -34,7 +34,11 @@ document.addEventListener('DOMContentLoaded', () => {
     populateComunaSelect();
     initSearchListeners();
     initPopoverOutsideClick();
+    initGeminiStatus();
     applyFilters();
+    if (window.innerWidth <= 768) {
+        expandMobileSheet(false);
+    }
 });
 
 function initTheme() {
@@ -258,9 +262,11 @@ window.toggleMobileSheet = toggleMobileSheet;
 
 function expandMobileSheet(expand) {
     const panel = document.getElementById('executive-panel');
+    const reopenBtn = document.getElementById('btn-reopen-panel');
     if (!panel) return;
-    panel.classList.toggle('sheet-expanded', expand);
-    panel.classList.toggle('sheet-peek', !expand);
+    panel.classList.toggle('collapsed', !expand);
+    document.body.classList.toggle('panel-collapsed', !expand);
+    if (reopenBtn) reopenBtn.style.display = expand ? 'none' : 'flex';
 }
 
 function setVisualMode(mode) {
@@ -961,11 +967,81 @@ function submitCopilotInput() {
 }
 window.submitCopilotInput = submitCopilotInput;
 
-function askCopilot(query) {
+function initGeminiStatus() {
+    const key = localStorage.getItem('visor_nuble_gemini_key');
+    const dot = document.getElementById('gemini-dot');
+    const txt = document.getElementById('gemini-status-txt');
+    if (dot) dot.classList.toggle('connected', Boolean(key));
+    if (txt) txt.textContent = key ? 'Gemini Conectado · Cambiar Key' : 'Configurar Gemini API Key';
+}
+
+function toggleGeminiKeyBox() {
+    const box = document.getElementById('gemini-key-box');
+    const input = document.getElementById('gemini-api-key-input');
+    if (!box) return;
+    const isHidden = box.style.display === 'none';
+    box.style.display = isHidden ? 'flex' : 'none';
+    if (isHidden && input) {
+        input.value = localStorage.getItem('visor_nuble_gemini_key') || '';
+        input.focus();
+    }
+}
+window.toggleGeminiKeyBox = toggleGeminiKeyBox;
+
+function saveGeminiApiKey() {
+    const input = document.getElementById('gemini-api-key-input');
+    const box = document.getElementById('gemini-key-box');
+    if (!input) return;
+    const val = input.value.trim();
+    if (val) {
+        localStorage.setItem('visor_nuble_gemini_key', val);
+    } else {
+        localStorage.removeItem('visor_nuble_gemini_key');
+    }
+    if (box) box.style.display = 'none';
+    initGeminiStatus();
+}
+window.saveGeminiApiKey = saveGeminiApiKey;
+
+function buildRegionalContextForGemini() {
+    const lines = AppState.data.map(d =>
+        `${d.name}|${d.comuna}|${getNubleProvincia(d.comuna)}|${d.categoria}|${d.km}km|${d.pointsCount}obras|${d.execStatus}|P:${d.inspection.presionMin}|Cl:${d.inspection.cloro}|ANF:${d.inspection.anf}`
+    );
+    const activeInfo = AppState.selectedSSR
+        ? `SSR actualmente seleccionado en el mapa: ${AppState.selectedSSR.name} (${AppState.selectedSSR.comuna}).`
+        : `Filtro actual de comuna: ${AppState.comunaFilter}.`;
+
+    return `Eres el Copiloto Estratégico de IA de la Dirección de Obras Hidráulicas (DOH) Región de Ñuble, asistiendo al Director Regional Alfredo Ávila.\n` +
+        `Responde de forma ejecutiva, concisa, directa y basada estrictamente en los datos reales del catastro KMZ adjunto (120 SSRs).\n` +
+        `Formato: español chileno formal, usa viñetas breves y negritas para cifras clave.\n` +
+        `${activeInfo}\n` +
+        `DATOS (Nombre|Comuna|Provincia|CatLey20998|RedKm|Obras|Estado|Presion|Cloro|ANF):\n` +
+        lines.join('\n');
+}
+
+function formatGeminiMarkdown(text) {
+    let html = text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/\*(.*?)\*/g, '<i>$1</i>')
+        .replace(/^\s*[-•*]\s+(.*)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>').replace(/<\/ul>\s*<ul>/g, '');
+    html = html.replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
+    return html;
+}
+
+function findMentionedSSRs(text) {
+    const norm = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return AppState.data.filter(d => {
+        const nameNorm = d.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return nameNorm.length > 4 && norm.includes(nameNorm);
+    }).slice(0, 5);
+}
+
+async function askCopilot(query) {
     const box = document.getElementById('copilot-messages');
     if (!box) return;
 
-    // Mostrar la consulta activa limpia sin repetir historial infinito
     box.innerHTML = '';
 
     const userMsg = document.createElement('div');
@@ -973,11 +1049,47 @@ function askCopilot(query) {
     userMsg.textContent = query;
     box.appendChild(userMsg);
 
-    const response = generateCopilotAnalysis(query);
     const aiMsg = document.createElement('div');
     aiMsg.className = 'cp-msg cp-msg-ai';
-    aiMsg.innerHTML = response;
+
+    const apiKey = localStorage.getItem('visor_nuble_gemini_key');
+    if (!apiKey) {
+        const localHtml = generateCopilotAnalysis(query);
+        aiMsg.innerHTML = localHtml + `<p style="margin-top:8px;font-size:10.5px;color:#64748b;">Modo local activo. Configura tu <b>Gemini API Key</b> arriba para respuestas con IA generativa real.</p>`;
+        box.appendChild(aiMsg);
+        box.scrollTop = 0;
+        return;
+    }
+
+    aiMsg.innerHTML = `<strong>Gemini 2.5 Flash</strong><p>Analizando los 120 SSRs de Ñuble...</p>`;
     box.appendChild(aiMsg);
+
+    try {
+        const sysContext = buildRegionalContextForGemini();
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ role: 'user', parts: [{ text: `${sysContext}\n\nCONSULTA DEL DIRECTOR:\n${query}` }] }],
+                generationConfig: { temperature: 0.3, maxOutputTokens: 650 }
+            })
+        });
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData?.error?.message || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta de Gemini.';
+        const mentioned = findMentionedSSRs(rawText);
+
+        aiMsg.innerHTML = `<strong>Gemini AI · DOH Ñuble</strong><div>${formatGeminiMarkdown(rawText)}</div>${renderSSRPills(mentioned, 5)}`;
+    } catch (err) {
+        const fallback = generateCopilotAnalysis(query);
+        aiMsg.innerHTML = `<strong>Error Gemini (${err.message})</strong><p style="margin-bottom:6px;">Mostrando análisis local de respaldo:</p>${fallback}`;
+    }
 
     box.scrollTop = 0;
 }
@@ -994,9 +1106,15 @@ function generateCopilotAnalysis(rawQuery) {
     const q = rawQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const all = AppState.data;
 
-    // 1. Detectar si pregunta por una Comuna específica de Ñuble
+    // 1. Detectar si pregunta por una Comuna específica de Ñuble (incluyendo nombres cortos como Ñiquén o San Fabián)
     const comunas = [...new Set(all.map(d => d.comuna))];
-    const matchedComuna = comunas.find(c => q.includes(c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
+    const matchedComuna = comunas.find(c => {
+        const norm = c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (q.includes(norm)) return true;
+        if (norm.includes('niquen') && q.includes('niquen')) return true;
+        if (norm.includes('san fabian') && q.includes('san fabian')) return true;
+        return false;
+    });
     if (matchedComuna) {
         const list = all.filter(d => d.comuna === matchedComuna);
         const kmSum = list.reduce((a, b) => a + b.km, 0).toFixed(1);
