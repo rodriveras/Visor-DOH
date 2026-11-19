@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Visor Regional SSR · DOH Ñuble</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css?v=20261119b">
+</head>
+<body>
+    <!-- MAPA FULLSCREEN -->
+    <div id="map"></div>
+
+    <!-- BARRA SUPERIOR MINIMALISTA (BRAND + SEARCH + 2 CONTROLES) -->
+    <header class="top-glass-bar">
+        <div class="brand-cluster" onclick="resetRegionalView()" title="Volver a vista regional">
+            <div class="brand-emblem">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+                </svg>
+            </div>
+            <div class="brand-titles">
+                <h1>DOH Ñuble</h1>
+                <span>Visor Regional SSR</span>
+            </div>
+        </div>
+
+        <div class="search-cluster">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="ssr-search-input" placeholder="Buscar SSR o comuna..." autocomplete="off">
+            <button id="btn-clear-search" class="btn-icon-clear" title="Limpiar" style="display:none;">✕</button>
+        </div>
+
+        <div class="top-actions">
+            <button id="btn-theme-toggle" class="btn-circle-glass" onclick="toggleTheme()" title="Alternar tema claro / oscuro" aria-label="Cambiar tema">
+                <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17" style="display:none;">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
+            <button id="btn-layers-popover" class="btn-circle-glass" onclick="toggleLayersPopover()" title="Mapa base y modo de vista" aria-label="Capas y mapa">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                    <polyline points="2 17 12 22 22 17"></polyline>
+                    <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+            </button>
+            <button class="btn-director-pill" onclick="openDirectorBriefModal()" title="Resumen ejecutivo para Dirección Regional">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span class="hide-sm">Visión Director</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- POPOVER FLOTANTE DE CAPAS Y MODO (DESPLEGABLE LIMPIO) -->
+    <div id="layers-popover" class="layers-popover" style="display:none;">
+        <div class="popover-section">
+            <span class="popover-lbl">Modo de Análisis</span>
+            <div class="segmented-control">
+                <button class="seg-btn active" data-mode="ley20998" onclick="setVisualMode('ley20998')">Ley 20.998</button>
+                <button class="seg-btn" data-mode="riesgo" onclick="setVisualMode('riesgo')">Prioridad Hídrica</button>
+            </div>
+        </div>
+        <div class="popover-section">
+            <span class="popover-lbl">Mapa Base</span>
+            <div class="segmented-control">
+                <button class="seg-btn" data-bm="osm" onclick="setBasemap('osm')">OSM</button>
+                <button class="seg-btn active" data-bm="sat" onclick="setBasemap('sat')">Satélite</button>
+                <button class="seg-btn" data-bm="hybrid" onclick="setBasemap('hybrid')">Híbrido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL LATERAL (DESKTOP) / BOTTOM SHEET (MÓVIL) -->
+    <aside id="executive-panel" class="executive-panel sheet-peek">
+        <!-- Tirador táctil para móvil -->
+        <div class="sheet-handle-area" onclick="toggleMobileSheet()">
+            <div class="sheet-handle"></div>
+        </div>
+
+        <!-- Cabecera + KPIs Esenciales (1 sola línea limpia) -->
+        <div class="panel-summary-header" onclick="if(window.innerWidth<=768) toggleMobileSheet()">
+            <div class="summary-title-group">
+                <span class="eyebrow" id="panel-scope-eyebrow">REGIÓN DE ÑUBLE</span>
+                <div class="summary-numbers">
+                    <strong id="kpi-total-ssr">--</strong> <span>SSRs</span>
+                    <span class="sep-dot">·</span>
+                    <strong id="kpi-total-km">--</strong> <span>km</span>
+                </div>
+            </div>
+            <button class="btn-collapse-desktop" onclick="event.stopPropagation(); toggleExecutivePanel();" title="Ocultar panel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Switch Integrado: Catastro | Copiloto IA -->
+        <div class="segmented-control panel-mode-tabs">
+            <button class="seg-btn active" data-ptab="catastro" onclick="switchPanelTab('catastro')">Catastro</button>
+            <button class="seg-btn" data-ptab="copilot" onclick="switchPanelTab('copilot')">Copiloto IA</button>
+        </div>
+
+        <!-- VISTA 1: CATASTRO & FILTROS -->
+        <div id="panel-view-catastro" class="panel-tab-view">
+            <div class="panel-controls-row">
+                <select id="select-comuna" class="glass-select" onchange="applyFilters()">
+                    <option value="ALL">Todas las Comunas (19)</option>
+                </select>
+                <button id="btn-critical-only" class="pill-toggle-crit" onclick="toggleCriticalOnly()" title="Filtrar solo críticos">
+                    <span class="crit-dot"></span>
+                    <span>Críticos</span>
+                </button>
+            </div>
+
+            <details class="ux-accordion">
+                <summary class="ux-accordion-summary">
+                    <span>Segmentación Ley 20.998</span>
+                    <span class="acc-meta" id="kpi-dist-text">--</span>
+                </summary>
+                <div class="ux-accordion-body">
+                    <div class="dist-bar">
+                        <div id="bar-grandes" class="bar-seg seg-grande" style="width:0%"></div>
+                        <div id="bar-medianos" class="bar-seg seg-mediano" style="width:0%"></div>
+                        <div id="bar-menores" class="bar-seg seg-menor" style="width:0%"></div>
+                    </div>
+                    <div class="category-pills">
+                        <button class="cat-pill active" data-cat="ALL" onclick="setCategoryFilter('ALL')">Todos</button>
+                        <button class="cat-pill" data-cat="GRANDES" onclick="setCategoryFilter('GRANDES')">Grandes</button>
+                        <button class="cat-pill" data-cat="MEDIANOS" onclick="setCategoryFilter('MEDIANOS')">Medianos</button>
+                        <button class="cat-pill" data-cat="MENORES" onclick="setCategoryFilter('MENORES')">Menores</button>
+                    </div>
+                </div>
+            </details>
+
+            <div class="ssr-list-header">
+                <span>Servicios</span>
+                <span id="list-count-badge" class="count-badge">0</span>
+            </div>
+            <div id="ssr-list-container" class="ssr-list-container"></div>
+        </div>
+
+        <!-- VISTA 2: COPILOTO ESTRATÉGICO INTEGRADO -->
+        <div id="panel-view-copilot" class="panel-tab-view" style="display:none;">
+            <div class="copilot-chips">
+                <button class="cp-chip" onclick="askCopilot('Top 5 críticos')">Top 5 Críticos</button>
+                <button class="cp-chip" onclick="askCopilot('Redes extensas >= 15 km')">Redes ≥15 km</button>
+                <button class="cp-chip" onclick="askCopilot('Briefing Ñuble')">Briefing Ñuble</button>
+            </div>
+
+            <div id="copilot-messages" class="copilot-messages">
+                <div class="cp-msg cp-msg-ai">
+                    <strong>Consultas Disponibles</strong>
+                    <p>Escribe una <b>comuna</b> (ej. <i>Coihueco</i>), una <b>provincia</b> (<i>Itata, Punilla, Diguillín</i>) o el nombre de un <b>SSR</b> para obtener cifras reales y enfocar el mapa.</p>
+                </div>
+            </div>
+
+            <form class="copilot-input-row" onsubmit="event.preventDefault(); submitCopilotInput();">
+                <input type="text" id="copilot-input" placeholder="Comuna, provincia o SSR..." autocomplete="off">
+                <button type="submit" class="btn-cp-send" title="Consultar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- PÍLDORA PARA REABRIR EL PANEL IZQUIERDO -->
+    <button id="btn-reopen-panel" class="btn-reopen-panel" onclick="toggleExecutivePanel()" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+        <span>Tablero</span>
+    </button>
+
+    <!-- FICHA DE SSR SELECCIONADO (PROGRESSIVE DISCLOSURE) -->
+    <section id="ssr-detail-card" class="ssr-detail-card" style="display:none;">
+        <div class="detail-drag-handle" onclick="closeDetailCard()">
+            <div class="sheet-handle"></div>
+        </div>
+        <div class="detail-header">
+            <div>
+                <div class="detail-badges">
+                    <span id="detail-cat-badge" class="badge-cat">GRANDE</span>
+                    <span id="detail-comuna-badge" class="badge-comuna">COIHUECO</span>
+                    <span id="detail-status-badge" class="badge-status">Normal</span>
+                </div>
+                <h3 id="detail-name">Nombre del SSR</h3>
+                <div class="detail-sub-meta">
+                    <span id="detail-km">0.0 km</span> de red · <span id="detail-pts">0</span> obras catastradas
+                </div>
+            </div>
+            <button class="btn-close-detail" onclick="closeDetailCard()" title="Cerrar">✕</button>
+        </div>
+
+        <!-- Resumen Ejecutivo Esencial (Primer Vistazo del Director) -->
+        <div class="detail-essential-box">
+            <div class="comp-row"><span>Calidad (NCh 409)</span><strong id="detail-calidad">--</strong></div>
+            <div class="comp-row"><span>Respaldo DGA</span><strong id="detail-dga">--</strong></div>
+            <div class="comp-row"><span>Prioridad Inversión</span><strong id="detail-inversion">--</strong></div>
+        </div>
+
+        <!-- 2 Acciones Limpias: Inspeccionar en Mapa | Ver Detalle Completo -->
+        <div class="detail-primary-actions two-cols">
+            <button class="btn-primary-action" onclick="runNetworkInspection()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span>Inspeccionar Red</span>
+            </button>
+            <button class="btn-secondary-action" onclick="openFullDetailModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                <span>Ver detalle</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- CONTROLES FLOTANTES DE MAPA (GPS + CENTRAR ÑUBLE) -->
+    <div class="map-floating-controls">
+        <button id="btn-my-location" class="btn-map-fab" onclick="locateUserGPS()" title="Mi ubicación GPS">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="19" height="19">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 2v3m0 14v3M2 12h3m14 0h3"></path>
+                <circle cx="12" cy="12" r="8" stroke-opacity="0.35"></circle>
+            </svg>
+        </button>
+        <button class="btn-map-fab" onclick="resetRegionalView()" title="Centrar Región de Ñuble">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <path d="M3 3v5h5"></path>
+            </svg>
+        </button>
+    </div>
+
+    <!-- BARRA FLOTANTE INFERIOR DE SEMÁFORO DE RED -->
+    <div id="inspection-pill-bar" class="inspection-pill-bar" style="display:none;"></div>
+
+    <!-- MODAL EJECUTIVO: VISIÓN DIRECTOR -->
+    <div id="director-brief-modal" class="director-modal-backdrop" style="display:none;" onclick="if(event.target===this) closeDirectorBriefModal()">
+        <div class="director-modal-card">
+            <div class="dm-modal-header">
+                <div>
+                    <span class="eyebrow">DIRECCIÓN REGIONAL DOH ÑUBLE</span>
+                    <h2>Toma de Decisiones en Tiempo Real</h2>
+                </div>
+                <button class="btn-close-detail" onclick="closeDirectorBriefModal()" title="Cerrar">✕</button>
+            </div>
+
+            <div class="dm-summary-strip">
+                <div class="dm-stat"><strong id="modal-total-ssr">120</strong><span>SSRs</span></div>
+                <div class="dm-stat"><strong id="modal-total-km">-- km</strong><span>Red Trazada</span></div>
+                <div class="dm-stat"><strong id="modal-crit-ssr" class="text-crit">--</strong><span>Críticos</span></div>
+                <div class="dm-stat"><strong id="modal-obs-ssr" class="text-warn">--</strong><span>Observación</span></div>
+            </div>
+
+            <div class="dm-pillars-grid">
+                <div class="dm-pillar">
+                    <div class="pillar-num">01</div>
+                    <h4>Priorización Presupuestaria</h4>
+                    <p>Focaliza fondos FNDR y MOP donde las pérdidas ANF o presiones críticas afectan a más familias.</p>
+                </div>
+                <div class="dm-pillar">
+                    <div class="pillar-num">02</div>
+                    <h4>Control de Escasez Hídrica</h4>
+                    <p>Detecta al instante comunas de secano con déficit de napa para optimizar camiones aljibe.</p>
+                </div>
+                <div class="dm-pillar">
+                    <div class="pillar-num">03</div>
+                    <h4>Alerta Temprana NCh 409</h4>
+                    <p>Monitorea cloro residual y turbiedad antes de que escalen a contingencias ciudadanas.</p>
+                </div>
+                <div class="dm-pillar">
+                    <div class="pillar-num">04</div>
+                    <h4>Navegación GPS en Terreno</h4>
+                    <p>Cada SSR es georreferenciado y navegable desde cualquier smartphone para fiscalización directa.</p>
+                </div>
+            </div>
+
+            <button class="btn-primary-action" style="width:100%; padding:12px;" onclick="activateCriticalPortfolioFromModal()">
+                <span>Ver Cartera Crítica en el Mapa</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL EXPANDIDO DE DETALLE TÉCNICO Y EJECUTIVO DEL SSR -->
+    <div id="ssr-full-detail-modal" class="director-modal-backdrop" style="display:none;" onclick="if(event.target===this) closeFullDetailModal()">
+        <div class="director-modal-card full-detail-modal">
+            <div class="dm-modal-header">
+                <div>
+                    <div class="detail-badges" style="margin-bottom:6px;">
+                        <span id="fd-cat-badge" class="badge-cat">GRANDE</span>
+                        <span id="fd-comuna-badge" class="badge-comuna">COIHUECO</span>
+                        <span id="fd-status-badge" class="badge-status st-ok">Normal</span>
+                    </div>
+                    <h2 id="fd-name">Nombre del SSR</h2>
+                    <span id="fd-coords" class="fd-coords-sub">--</span>
+                </div>
+                <button class="btn-close-detail" onclick="closeFullDetailModal()" title="Cerrar">✕</button>
+            </div>
+
+            <!-- 1. Gobernanza & Cobertura Ley 20.998 -->
+            <div class="fd-section">
+                <div class="fd-section-title">1. Gobernanza & Cobertura (Ley N° 20.998)</div>
+                <div class="fd-grid-4">
+                    <div class="fd-kpi"><span>Provincia</span><strong id="fd-provincia">--</strong></div>
+                    <div class="fd-kpi"><span>Arranques Est.</span><strong id="fd-arranques">--</strong></div>
+                    <div class="fd-kpi"><span>Población Est.</span><strong id="fd-poblacion">--</strong></div>
+                    <div class="fd-kpi"><span>Concesión DOH</span><strong id="fd-concesion">Regularizada</strong></div>
+                </div>
+            </div>
+
+            <!-- 2. Inspección Técnica Hidráulica & Sanitaria -->
+            <div class="fd-section">
+                <div class="fd-section-title">
+                    <span>2. Diagnóstico Técnico de Red (Demo)</span>
+                    <span id="insp-folio" class="acc-folio">INS-001</span>
+                </div>
+                <div class="fd-grid-4" style="margin-bottom:8px;">
+                    <div class="fd-kpi"><span>Presión Mín. (NCh 691)</span><strong id="insp-presion">--</strong></div>
+                    <div class="fd-kpi"><span>Cloro Libre (NCh 409)</span><strong id="insp-cloro">--</strong></div>
+                    <div class="fd-kpi"><span>Turbiedad Fuente</span><strong id="insp-turbiedad">--</strong></div>
+                    <div class="fd-kpi"><span>Pérdida Física ANF</span><strong id="insp-anf">--</strong></div>
+                </div>
+                <div class="fd-grid-2" style="margin-bottom:8px;">
+                    <div class="fd-kpi"><span>Caudal DGA Concedido / Uso</span><strong id="fd-caudal">--</strong></div>
+                    <div class="fd-kpi"><span>Riesgo Camión Aljibe</span><strong id="fd-aljibe">--</strong></div>
+                </div>
+                <div id="insp-finding" class="insp-finding">--</div>
+            </div>
+
+            <!-- 3. Cartera de Inversión & Planificación DOH -->
+            <div class="fd-section">
+                <div class="fd-section-title">3. Inversión & Priorización Regional</div>
+                <div class="fd-grid-2">
+                    <div class="fd-kpi"><span>Línea Financiamiento</span><strong id="fd-financiamiento">--</strong></div>
+                    <div class="fd-kpi"><span>Presupuesto Referencial</span><strong id="fd-presupuesto">--</strong></div>
+                </div>
+            </div>
+
+            <!-- 4. Infraestructura Real Catastrada en KMZ -->
+            <div class="fd-section">
+                <div class="fd-section-title">
+                    <span>4. Infraestructura Catastrada (KMZ DOH)</span>
+                    <span id="fd-net-summary" class="acc-meta">--</span>
+                </div>
+                <div id="fd-works-list" class="fd-works-list"></div>
+            </div>
+
+            <div class="detail-primary-actions two-cols" style="margin-bottom:0; margin-top:12px;">
+                <button class="btn-primary-action" onclick="closeFullDetailModal()">
+                    <span>Volver al Mapa</span>
+                </button>
+                <button class="btn-secondary-action" onclick="exportExecutiveFicha()">
+                    <span>Descargar Ficha (.txt)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="data/ssr_nuble.js"></script>
+    <script src="js/app.js?v=20261119c"></script>
+</body>
+</html>
