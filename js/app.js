@@ -888,7 +888,7 @@ function switchPanelTab(tab) {
         btn.classList.toggle('active', btn.dataset.ptab === tab);
     });
 
-    if (tab === 'copilot' && window.innerWidth <= 768) {
+    if (window.innerWidth <= 768) {
         expandMobileSheet(true);
     }
 }
