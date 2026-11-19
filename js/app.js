@@ -7,6 +7,7 @@ let map;
 let basemaps = {};
 let activeBasemapKey = 'sat';
 let markersLayer = L.layerGroup();
+let comunaNetworksLayer = L.layerGroup();
 let activeNetworkLayer = L.layerGroup();
 let gpsLayer = L.layerGroup();
 let gpsWatchId = null;
@@ -83,6 +84,7 @@ function initMap() {
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     });
 
+    comunaNetworksLayer.addTo(map);
     activeNetworkLayer.addTo(map);
     markersLayer.addTo(map);
     gpsLayer.addTo(map);
@@ -267,6 +269,7 @@ function setVisualMode(mode) {
         btn.classList.toggle('active', btn.dataset.mode === mode);
     });
     renderMapMarkers();
+    renderFilteredNetworks();
     renderSSRList();
 }
 window.setVisualMode = setVisualMode;
@@ -321,13 +324,60 @@ function applyFilters() {
     updateKPIs();
     renderSSRList();
     renderMapMarkers();
+    renderFilteredNetworks();
 
     if (AppState.comunaFilter !== 'ALL' && AppState.filtered.length > 0) {
-        const bounds = L.latLngBounds(AppState.filtered.map(d => [d.lat, d.lng]));
-        map.flyToBounds(bounds, { padding: [60, 60], maxZoom: 12, duration: 0.85 });
+        const pts = [];
+        AppState.filtered.forEach(d => {
+            pts.push([d.lat, d.lng]);
+            if (d.lines) d.lines.forEach(line => line.forEach(c => pts.push(c)));
+        });
+        const bounds = L.latLngBounds(pts);
+        const isDesktop = window.innerWidth > 768;
+        const padLeft = isDesktop ? 300 : 30;
+        map.flyToBounds(bounds, {
+            paddingTopLeft: [padLeft, 85],
+            paddingBottomRight: [40, isDesktop ? 40 : 140],
+            maxZoom: 13,
+            duration: 0.85
+        });
     }
 }
 window.applyFilters = applyFilters;
+
+function renderFilteredNetworks() {
+    comunaNetworksLayer.clearLayers();
+    // Dibujar automáticamente las redes cuando se elige una comuna o hay <= 20 servicios filtrados
+    if (AppState.comunaFilter === 'ALL' && AppState.filtered.length > 20) return;
+
+    AppState.filtered.forEach(ssr => {
+        if (!ssr.lines || ssr.lines.length === 0) return;
+        const netColor = getMarkerColor(ssr);
+
+        ssr.lines.forEach(coords => {
+            const casing = L.polyline(coords, {
+                color: '#ffffff',
+                weight: 4.5,
+                opacity: 0.72,
+                lineCap: 'round',
+                lineJoin: 'round',
+                interactive: false
+            });
+            comunaNetworksLayer.addLayer(casing);
+
+            const line = L.polyline(coords, {
+                color: netColor,
+                weight: 2.5,
+                opacity: 0.92,
+                lineCap: 'round',
+                lineJoin: 'round'
+            });
+            line.bindTooltip(`<strong>${ssr.name}</strong><br>${ssr.comuna} · ${ssr.km} km`, { sticky: true });
+            line.on('click', () => selectSSR(ssr));
+            comunaNetworksLayer.addLayer(line);
+        });
+    });
+}
 
 function updateKPIs() {
     const list = AppState.filtered;

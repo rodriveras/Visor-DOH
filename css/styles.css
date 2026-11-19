@@ -811,9 +811,12 @@ html, body {
 /* MOBILE-FIRST BOTTOM SHEET RESPONSIVE */
 @media (max-width: 768px) {
     .hide-sm { display: none; }
-    .brand-titles span { display: none; }
-    .top-glass-bar { left: 10px; right: 10px; padding: 6px 10px; gap: 6px; }
-    .search-cluster { max-width: none; min-width: 0; }
+    .brand-titles { display: none; }
+    .top-glass-bar { left: 10px; right: 10px; padding: 6px 8px; gap: 6px; }
+    .search-cluster { max-width: none; min-width: 0; flex: 1; }
+    #ssr-search-input { font-size: 14px; min-height: 36px; padding: 8px 28px 8px 34px; }
+    .glass-select { min-height: 38px; font-size: 13.5px; }
+    .pill-toggle-crit { min-height: 38px; padding: 8px 12px; font-size: 12px; }
     .btn-director-pill { padding: 8px; border-radius: 50%; }
 
     .executive-panel {
@@ -847,10 +850,6 @@ html, body {
     .inspection-pill-bar { display: none !important; }
     .dm-summary-strip { grid-template-columns: repeat(2, 1fr); }
     .dm-pillars-grid { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 480px) {
-    .brand-titles { display: none; }
 }
 
 /* ==========================================================================
